@@ -10,21 +10,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -52,6 +47,11 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter();
+    }
+
+    @Bean
     public SecurityFilterChain configure(HttpSecurity http) throws Exception {
 
         // Configure AuthenticationManagerBuilder
@@ -65,29 +65,41 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling((exception)-> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedPage("/error/access-denied"))
+                .exceptionHandling((exception)-> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers(HttpMethod.POST, "ss").permitAll()
-                        .anyRequest().authenticated())
+                    .requestMatchers("/",
+                        "/favicon.ico",
+                        "/**/*.png",
+                        "/**/*.gif",
+                        "/**/*.svg",
+                        "/**/*.jpg",
+                        "/**/*.html",
+                        "/**/*.css",
+                        "/**/*.js")
+                    .permitAll()
+                    .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/api/user/checkUsernameAvailability", "/api/user/checkEmailAvailability").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/polls/**", "/api/users/**").permitAll()
+                    .anyRequest().authenticated())
                 // User Authentication with custom login URL path
-                .addFilter(getAuthenticationFilter(authenticationManager))
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
 
                 // User Authorization with JWT
-                .addFilter(new JwtAuthenticationFilter(authenticationManager))
+//                .addFilter(new JwtAuthenticationFilter(authenticationManager))
                 .authenticationManager(authenticationManager)
+
                 .sessionManagement((session) -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
 
     }
 
     // Configure custom login URL path
-    protected JwtAuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) throws Exception {
-        final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(authenticationManager);
-        filter.setFilterProcessesUrl("/api/users/login");
-        return filter;
-    }
+//    protected JwtAuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) throws Exception {
+//        final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(authenticationManager);
+//        filter.setFilterProcessesUrl("/api/users/login");
+//        return filter;
+//    }
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
