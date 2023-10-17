@@ -2,8 +2,6 @@ package com.tintin.blog.config;
 
 import com.tintin.blog.security.CustomUserDetailsService;
 import com.tintin.blog.security.JwtAuthenticationFilter;
-import jakarta.servlet.Filter;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -32,12 +30,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-
-    /**
-     * Deprecated WebSecurityConfigurerAdapter
-     * https://www.appsdeveloperblog.com/migrating-from-deprecated-websecurityconfigureradapter/
-     */
-
     private final BCryptPasswordEncoder  bCryptPasswordEncoder;
 
     @Autowired
@@ -52,6 +44,12 @@ public class SecurityConfig {
     }
 
     @Bean
+    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
+        return http.getSharedObject(AuthenticationManagerBuilder.class)
+            .build();
+    }
+
+    @Bean
     public SecurityFilterChain configure(HttpSecurity http) throws Exception {
 
         // Configure AuthenticationManagerBuilder
@@ -63,41 +61,32 @@ public class SecurityConfig {
         // Get AuthenticationManager
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
         http
-                .cors(Customizer.withDefaults())
-                .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling((exception)-> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                .authorizeHttpRequests((auth) -> auth
-                    .requestMatchers("/",
-                        "/favicon.ico",
-                        "/**/*.png",
-                        "/**/*.gif",
-                        "/**/*.svg",
-                        "/**/*.jpg",
-                        "/**/*.html",
-                        "/**/*.css",
-                        "/**/*.js")
-                    .permitAll()
-                    .requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers("/api/user/checkUsernameAvailability", "/api/user/checkEmailAvailability").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/polls/**", "/api/users/**").permitAll()
-                    .anyRequest().authenticated())
-                // User Authentication with custom login URL path
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .cors(Customizer.withDefaults())
+            .csrf(AbstractHttpConfigurer::disable)
+            .exceptionHandling((exception)-> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+            .authorizeHttpRequests((auth) -> auth
+                .requestMatchers(HttpMethod.POST, "/api/auth/signin/**", "/api/auth/signup/**").permitAll()
+                .requestMatchers("/api/user/checkUsernameAvailability", "/api/user/checkEmailAvailability").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/polls/**", "/api/users/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            // User Authentication with custom login URL path
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
 
-                // User Authorization with JWT
-//                .addFilter(new JwtAuthenticationFilter(authenticationManager))
-                .authenticationManager(authenticationManager)
+            // User Authorization with JWT
+//            .addFilter(new JwtAuthenticationFilter(authenticationManager))
+            .authenticationManager(authenticationManager)
 
-                .sessionManagement((session) -> session
-                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            .sessionManagement((session) -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
 
     }
 
     // Configure custom login URL path
-//    protected JwtAuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) throws Exception {
-//        final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(authenticationManager);
-//        filter.setFilterProcessesUrl("/api/users/login");
+//    protected CustomAuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) throws Exception {
+//        final CustomAuthenticationFilter filter = new CustomAuthenticationFilter(authenticationManager);
+//        filter.setFilterProcessesUrl("/api/auth/signin");
 //        return filter;
 //    }
     @Bean

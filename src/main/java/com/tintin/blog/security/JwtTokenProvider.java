@@ -1,14 +1,17 @@
 package com.tintin.blog.security;
 
+import com.auth0.jwt.JWT;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
+import java.util.stream.Collectors;
 
 /**
  * generating a JWT after a user logs in successfully,
@@ -30,22 +33,25 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
-        //TODO: replace deprecated methods
-        return Jwts.builder()
+        String accessToken =  Jwts.builder()
                 .setSubject(Long.toString(userPrincipal.getId()))
                 .setIssuedAt(new Date())
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS512, jwtSecret)
+                .setIssuer(authentication.getName())
+                .claim("roles", userPrincipal.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+                .signWith(SignatureAlgorithm.HS256, jwtSecret.getBytes())
                 .compact();
+
+        logger.info("sdsdsd {}", JWT.decode(accessToken).getClaims());
+        String userId = String.valueOf(JWT.decode(accessToken).getClaims().get("sub"));
+        logger.info("userId {}", userId);
+        return accessToken;
     }
 
     public Long getUserIdFromJwt(String token) {
         //TODO: replace deprecated methods
-        Claims claims = Jwts.parser()
-                .setSigningKey(jwtSecret)
-                .parseClaimsJws(token)
-                .getBody();
-        return Long.parseLong(claims.getSubject());
+        String userId = String.valueOf(JWT.decode(token).getClaims().get("sub"));
+        return Long.parseLong(userId);
     }
 
     public boolean validateToken(String authToken) {

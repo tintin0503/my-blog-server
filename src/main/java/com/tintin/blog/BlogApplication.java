@@ -1,6 +1,10 @@
 package com.tintin.blog;
 
+import com.tintin.blog.model.Role;
+import com.tintin.blog.service.UserService;
+import com.tintin.blog.utils.RoleName;
 import jakarta.annotation.PostConstruct;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -31,12 +35,12 @@ public class BlogApplication {
 		SpringApplication.run(BlogApplication.class, args);
 	}
 
-//	@Bean
-//	CommandLineRunner run(UserService userService) {
-//		return args -> {
-//			userService.saveRole(new Role(RoleName.ROLE_ADMIN));
-//			userService.saveRole(new Role(RoleName.ROLE_USER));
-//		};
-//	}
+	@Bean
+	CommandLineRunner run(UserService userService) {
+		return args -> {
+			userService.saveRole(new Role(RoleName.ROLE_ADMIN));
+			userService.saveRole(new Role(RoleName.ROLE_USER));
+		};
+	}
 
 }
